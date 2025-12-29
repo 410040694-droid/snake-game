@@ -15,15 +15,19 @@ body {
 }
 
 .wrap { max-width: 860px; margin: 0 auto; padding: 24px; }
+
 .top {
   background: rgba(23, 26, 43, 0.8);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 16px;
   padding: 16px 16px 12px;
 }
+
 .top h1 { margin: 0 0 8px; font-size: 22px; }
-.hud { display: flex; gap: 16px; color: var(--muted); }
-.hint { margin-top: 8px; color: var(--muted); font-size: 14px; }
+
+.hud { display: flex; flex-wrap: wrap; gap: 16px; color: var(--muted); }
+
+.hint { margin-top: 10px; color: var(--muted); font-size: 14px; }
 
 .board {
   margin-top: 16px;
@@ -44,6 +48,7 @@ canvas {
 }
 
 .bottom { margin-top: 14px; display: flex; justify-content: center; }
+
 button {
   padding: 10px 14px;
   border-radius: 12px;
@@ -69,11 +74,16 @@ button:hover { background: rgba(122, 162, 255, 0.28); }
 .invincible-fill {
   height: 100%;
   width: 100%;
-  background: linear-gradient(
-    90deg,
-    #ffe08a,
-    #ffd24d,
-    #ffb703
-  );
+  background: linear-gradient(90deg, #ffe08a, #ffd24d, #ffb703);
   border-radius: 999px;
+}
+
+/* 快結束閃爍 */
+@keyframes invBlink {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50% { opacity: 0.35; filter: brightness(1.25); }
+}
+
+.invincible-bar.blink {
+  animation: invBlink 0.22s linear infinite;
 }
