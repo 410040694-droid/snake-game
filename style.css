@@ -53,3 +53,27 @@ button {
   cursor: pointer;
 }
 button:hover { background: rgba(122, 162, 255, 0.28); }
+
+/* 無敵倒數條 */
+.invincible-bar {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  margin-top: 10px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.invincible-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    #ffe08a,
+    #ffd24d,
+    #ffb703
+  );
+  border-radius: 999px;
+}
