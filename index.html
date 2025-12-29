@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Snake: Strawberry + Star Invincibility</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <h1>🍓🐍⭐ Snake</h1>
+      <div class="hud">
+        <div>分數：<span id="score">0</span></div>
+        <div>狀態：<span id="status">正常</span></div>
+      </div>
+      <div class="hint">方向鍵 / WASD 控制。吃🍓加分，吃⭐三秒無敵。</div>
+    </header>
+
+    <section class="board">
+      <canvas id="game" width="480" height="480" aria-label="snake game"></canvas>
+    </section>
+
+    <footer class="bottom">
+      <button id="restart">重新開始</button>
+    </footer>
+  </main>
+
+  <script src="./main.js"></script>
+</body>
+</html>
