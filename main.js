@@ -6,6 +6,8 @@ const scoreEl = document.getElementById("score");
 const statusEl = document.getElementById("status");
 const restartBtn = document.getElementById("restart");
 
+const invincibleFill = document.getElementById("invincibleFill");
+
 const GRID = 24; // 24x24 tiles
 const TILE = canvas.width / GRID;
 const TICK_MS = 110;
@@ -44,7 +46,14 @@ function placeStar() {
 
 function setInvincible(seconds = 3) {
   state.invincibleUntil = Date.now() + seconds * 1000;
+
+  // 顯示倒數條
+  invincibleFill.parentElement.style.opacity = "1";
+  invincibleFill.style.width = "100%";
+
   updateHUD();
+}
+
 }
 
 function isInvincible() {
@@ -64,7 +73,20 @@ function updateHUD() {
     statusEl.textContent = `無敵中（${left}s）`;
   } else {
     statusEl.textContent = "正常";
+
+    }
+      // 更新無敵倒數條（每一幀都會跑）
+  if (isInvincible()) {
+    const total = 3000; // 3 秒
+    const left = state.invincibleUntil - Date.now();
+    const percent = Math.max(left / total, 0);
+
+    invincibleFill.style.width = `${percent * 100}%`;
+  } else {
+    // 無敵結束 → 隱藏倒數條
+    invincibleFill.parentElement.style.opacity = "0";
   }
+
 }
 
 function trySetDir(dx, dy) {
