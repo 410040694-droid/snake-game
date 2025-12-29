@@ -1,4 +1,4 @@
-// Snake with 🍓 score + ⭐ 3s invincibility
+// Snake with 🍓 score + ⭐ 3s invincibility (cute edition)
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -6,7 +6,7 @@ const scoreEl = document.getElementById("score");
 const statusEl = document.getElementById("status");
 const restartBtn = document.getElementById("restart");
 
-const GRID = 24;                 // 24x24 tiles
+const GRID = 24; // 24x24 tiles
 const TILE = canvas.width / GRID;
 const TICK_MS = 110;
 
@@ -22,26 +22,6 @@ function randCell(avoidSet) {
   }
 }
 
-function newGame() {
-  state = {
-    snake: [{ x: 8, y: 12 }, { x: 7, y: 12 }, { x: 6, y: 12 }],
-    dir: { x: 1, y: 0 },
-    nextDir: { x: 1, y: 0 },
-    score: 0,
-    alive: true,
-    invincibleUntil: 0,  // timestamp ms
-    strawberry: null,
-    star: null,
-    starActive: false,
-    lastTick: 0,
-  };
-
-  placeStrawberry();
-  placeStar();
-  updateHUD();
-  draw();
-}
-
 function snakeCellsSet() {
   const s = new Set();
   for (const p of state.snake) s.add(`${p.x},${p.y}`);
@@ -55,7 +35,7 @@ function placeStrawberry() {
 }
 
 function placeStar() {
-  // star appears sometimes; we keep one on board after a delay
+  // Star appears; after being eaten, it respawns after a short delay
   const avoid = snakeCellsSet();
   if (state.strawberry) avoid.add(`${state.strawberry.x},${state.strawberry.y}`);
   state.star = randCell(avoid);
@@ -73,10 +53,12 @@ function isInvincible() {
 
 function updateHUD() {
   scoreEl.textContent = state.score.toString();
+
   if (!state.alive) {
     statusEl.textContent = "遊戲結束（按重新開始）";
     return;
   }
+
   if (isInvincible()) {
     const left = Math.ceil((state.invincibleUntil - Date.now()) / 1000);
     statusEl.textContent = `無敵中（${left}s）`;
@@ -86,7 +68,7 @@ function updateHUD() {
 }
 
 function trySetDir(dx, dy) {
-  // no 180-degree turn
+  // No 180-degree turn
   const { x, y } = state.dir;
   if (dx === -x && dy === -y) return;
   state.nextDir = { x: dx, y: dy };
@@ -102,6 +84,32 @@ window.addEventListener("keydown", (e) => {
 
 restartBtn.addEventListener("click", newGame);
 
+function newGame() {
+  state = {
+    snake: [
+      { x: 8, y: 12 },
+      { x: 7, y: 12 },
+      { x: 6, y: 12 },
+    ],
+    dir: { x: 1, y: 0 },
+    nextDir: { x: 1, y: 0 },
+
+    score: 0,
+    alive: true,
+
+    invincibleUntil: 0, // timestamp ms
+
+    strawberry: null,
+    star: null,
+    starActive: false,
+  };
+
+  placeStrawberry();
+  placeStar();
+  updateHUD();
+  draw();
+}
+
 function tick() {
   if (!state.alive) return;
 
@@ -112,7 +120,7 @@ function tick() {
 
   const inv = isInvincible();
 
-  // Wall collision
+  // Wall collision (normal)
   if (!inv && (newHead.x < 0 || newHead.x >= GRID || newHead.y < 0 || newHead.y >= GRID)) {
     state.alive = false;
     updateHUD();
@@ -120,7 +128,7 @@ function tick() {
     return;
   }
 
-  // Wrap-around when invincible (fun bonus): bounce through walls
+  // When invincible, wrap around instead of dying (fun + clear "invincible" feel)
   if (inv) {
     if (newHead.x < 0) newHead.x = GRID - 1;
     if (newHead.x >= GRID) newHead.x = 0;
@@ -128,13 +136,16 @@ function tick() {
     if (newHead.y >= GRID) newHead.y = 0;
   }
 
-  // Self collision (note: tail moves, so check after pop if not eating)
-  const willEatStrawberry = state.strawberry && newHead.x === state.strawberry.x && newHead.y === state.strawberry.y;
-  const willEatStar = state.starActive && state.star && newHead.x === state.star.x && newHead.y === state.star.y;
+  const willEatStrawberry =
+    state.strawberry && newHead.x === state.strawberry.x && newHead.y === state.strawberry.y;
 
-  // Move: add head first
+  const willEatStar =
+    state.starActive && state.star && newHead.x === state.star.x && newHead.y === state.star.y;
+
+  // Move: add head
   state.snake.unshift(newHead);
 
+  // Eat strawberry => grow + score
   if (willEatStrawberry) {
     state.score += 10;
     placeStrawberry();
@@ -143,17 +154,18 @@ function tick() {
     state.snake.pop();
   }
 
+  // Eat star => invincible 3 seconds + respawn later
   if (willEatStar) {
     setInvincible(3);
     state.starActive = false;
-    // respawn star after a short delay
+
     setTimeout(() => {
       if (!state.alive) return;
       placeStar();
     }, 1800);
   }
 
-  // Self collision check AFTER movement
+  // Self collision (only when not invincible)
   if (!inv) {
     const headNow = state.snake[0];
     for (let i = 1; i < state.snake.length; i++) {
@@ -171,8 +183,8 @@ function tick() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // grid background
-  ctx.globalAlpha = 0.18;
+  // soft grid
+  ctx.globalAlpha = 0.14;
   for (let x = 0; x < GRID; x++) {
     for (let y = 0; y < GRID; y++) {
       ctx.strokeRect(x * TILE, y * TILE, TILE, TILE);
@@ -180,28 +192,118 @@ function draw() {
   }
   ctx.globalAlpha = 1;
 
-  // strawberry 🍓
-  if (state.strawberry) {
-    drawEmoji("🍓", state.strawberry.x, state.strawberry.y);
-  }
+  // foods
+  if (state.strawberry) drawEmoji("🍓", state.strawberry.x, state.strawberry.y);
+  if (state.starActive && state.star) drawEmoji("⭐", state.star.x, state.star.y);
 
-  // star ⭐
-  if (state.starActive && state.star) {
-    drawEmoji("⭐", state.star.x, state.star.y);
-  }
-
-  // snake
+  // cute snake
   const inv = isInvincible();
-  for (let i = 0; i < state.snake.length; i++) {
-    const p = state.snake[i];
-    const pad = 2;
+  const head = state.snake[0];
+
+  // invincible aura around head
+  if (inv) {
+    const cx = head.x * TILE + TILE / 2;
+    const cy = head.y * TILE + TILE / 2;
+    const r = TILE * 0.85;
+    const g = ctx.createRadialGradient(cx, cy, TILE * 0.1, cx, cy, r);
+    g.addColorStop(0, "rgba(255, 255, 255, 0.25)");
+    g.addColorStop(1, "rgba(255, 255, 255, 0)");
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.roundRect(p.x * TILE + pad, p.y * TILE + pad, TILE - pad * 2, TILE - pad * 2, 8);
-    ctx.fillStyle = inv ? "rgba(255, 234, 120, 0.95)" : "rgba(122, 162, 255, 0.95)";
-    if (i === 0) ctx.fillStyle = inv ? "rgba(255, 205, 84, 1)" : "rgba(160, 196, 255, 1)";
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
   }
 
+  // draw tail -> head so head sits on top
+  for (let i = state.snake.length - 1; i >= 0; i--) {
+    const p = state.snake[i];
+    const isHead = i === 0;
+
+    const pad = 3;
+    const x = p.x * TILE + pad;
+    const y = p.y * TILE + pad;
+    const w = TILE - pad * 2;
+    const h = TILE - pad * 2;
+
+    // body color
+    ctx.fillStyle = inv
+      ? "rgba(255, 220, 120, 0.96)"
+      : "rgba(140, 200, 255, 0.96)";
+
+    // head a bit brighter
+    if (isHead) {
+      ctx.fillStyle = inv
+        ? "rgba(255, 200, 70, 1)"
+        : "rgba(170, 225, 255, 1)";
+    }
+
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 12);
+    ctx.fill();
+
+    // jelly highlight
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.roundRect(x + w * 0.12, y + h * 0.1, w * 0.55, h * 0.28, 10);
+    ctx.fill();
+    ctx.restore();
+
+    // face on head
+    if (isHead) {
+      const cx = p.x * TILE + TILE / 2;
+      const cy = p.y * TILE + TILE / 2;
+
+      // tiny offset toward moving direction
+      const dx = state.dir.x;
+      const dy = state.dir.y;
+
+      const eyeOffsetX = dx * 3;
+      const eyeOffsetY = dy * 3;
+
+      const eyeY = cy - 5 + eyeOffsetY;
+      const leftEyeX = cx - 6 + eyeOffsetX;
+      const rightEyeX = cx + 6 + eyeOffsetX;
+
+      const drawEye = (ex, ey) => {
+        // pupil
+        ctx.fillStyle = "rgba(20, 26, 38, 0.95)";
+        ctx.beginPath();
+        ctx.arc(ex, ey, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // sparkle
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.beginPath();
+        ctx.arc(ex - 1.1, ey - 1.2, 1.1, 0, Math.PI * 2);
+        ctx.fill();
+      };
+
+      drawEye(leftEyeX, eyeY);
+      drawEye(rightEyeX, eyeY);
+
+      // blush
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = "rgba(255, 120, 170, 1)";
+      ctx.beginPath();
+      ctx.arc(cx - 10, cy + 4, 4.2, 0, Math.PI * 2);
+      ctx.arc(cx + 10, cy + 4, 4.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // little smile (toward front)
+      ctx.strokeStyle = "rgba(20, 26, 38, 0.55)";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.arc(cx + dx * 6, cy + dy * 6 + 4, 4, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.stroke();
+    }
+  }
+
+  // Game Over overlay
   if (!state.alive) {
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -225,13 +327,15 @@ function drawEmoji(emoji, gx, gy) {
 let last = 0;
 function loop(ts) {
   if (!state) newGame();
+
   if (ts - last >= TICK_MS) {
     tick();
     last = ts;
   } else {
-    // still update HUD countdown smoothly
+    // keep HUD countdown feeling responsive
     updateHUD();
   }
+
   requestAnimationFrame(loop);
 }
 
