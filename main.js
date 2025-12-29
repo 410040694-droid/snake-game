@@ -1,21 +1,42 @@
-// Snake with 🍓 score + ⭐ 3s invincibility (cute edition)
+// Snake with 🍓 score + ⭐ 3s invincibility + countdown bar (blinking near end) + high score
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 const scoreEl = document.getElementById("score");
+const highScoreEl = document.getElementById("highScore");
 const statusEl = document.getElementById("status");
 const restartBtn = document.getElementById("restart");
 
+// Invincibility bar (safe-guarded)
 const invincibleFill = document.getElementById("invincibleFill");
+const invincibleBar = invincibleFill ? invincibleFill.parentElement : null;
 
 const GRID = 24; // 24x24 tiles
 const TILE = canvas.width / GRID;
 const TICK_MS = 110;
 
+const INV_TOTAL_MS = 3000;
+const BLINK_THRESHOLD_MS = 900; // 剩下不到 0.9 秒開始閃
+
+const HIGH_SCORE_KEY = "snake_high_score_v1";
+
 let state;
 
+function loadHighScore() {
+  const raw = localStorage.getItem(HIGH_SCORE_KEY);
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+function saveHighScore(n) {
+  localStorage.setItem(HIGH_SCORE_KEY, String(n));
+}
+
+function setHighScoreUI(n) {
+  if (highScoreEl) highScoreEl.textContent = String(n);
+}
+
 function randCell(avoidSet) {
-  // avoidSet: Set of "x,y"
   while (true) {
     const x = Math.floor(Math.random() * GRID);
     const y = Math.floor(Math.random() * GRID);
@@ -37,62 +58,88 @@ function placeStrawberry() {
 }
 
 function placeStar() {
-  // Star appears; after being eaten, it respawns after a short delay
   const avoid = snakeCellsSet();
   if (state.strawberry) avoid.add(`${state.strawberry.x},${state.strawberry.y}`);
   state.star = randCell(avoid);
   state.starActive = true;
 }
 
-function setInvincible(seconds = 3) {
-  state.invincibleUntil = Date.now() + seconds * 1000;
-
-  // 顯示倒數條
-  invincibleFill.parentElement.style.opacity = "1";
-  invincibleFill.style.width = "100%";
-
-  updateHUD();
-}
-
-}
-
 function isInvincible() {
   return Date.now() < state.invincibleUntil;
 }
 
+function setInvincible(seconds = 3) {
+  state.invincibleUntil = Date.now() + seconds * 1000;
+
+  // show countdown bar safely
+  if (invincibleBar && invincibleFill) {
+    invincibleBar.style.opacity = "1";
+    invincibleFill.style.width = "100%";
+    invincibleBar.classList.remove("blink");
+  }
+
+  updateHUD();
+}
+
+function updateHighScoreIfNeeded() {
+  if (!Number.isFinite(state.score)) return;
+  if (state.score > state.highScore) {
+    state.highScore = state.score;
+    saveHighScore(state.highScore);
+    setHighScoreUI(state.highScore);
+  }
+}
+
 function updateHUD() {
   scoreEl.textContent = state.score.toString();
+  setHighScoreUI(state.highScore);
 
   if (!state.alive) {
     statusEl.textContent = "遊戲結束（按重新開始）";
+    updateHighScoreIfNeeded();
+
+    if (invincibleBar) {
+      invincibleBar.style.opacity = "0";
+      invincibleBar.classList.remove("blink");
+    }
     return;
   }
 
   if (isInvincible()) {
-    const left = Math.ceil((state.invincibleUntil - Date.now()) / 1000);
-    statusEl.textContent = `無敵中（${left}s）`;
+    const leftSec = Math.ceil((state.invincibleUntil - Date.now()) / 1000);
+    statusEl.textContent = `無敵中（${leftSec}s）`;
   } else {
     statusEl.textContent = "正常";
-
-    }
-      // 更新無敵倒數條（每一幀都會跑）
-  if (isInvincible()) {
-    const total = 3000; // 3 秒
-    const left = state.invincibleUntil - Date.now();
-    const percent = Math.max(left / total, 0);
-
-    invincibleFill.style.width = `${percent * 100}%`;
-  } else {
-    // 無敵結束 → 隱藏倒數條
-    invincibleFill.parentElement.style.opacity = "0";
   }
 
+  // update countdown bar safely (each frame)
+  if (invincibleBar && invincibleFill) {
+    if (isInvincible()) {
+      const left = state.invincibleUntil - Date.now();
+      const percent = Math.max(left / INV_TOTAL_MS, 0);
+
+      invincibleBar.style.opacity = "1";
+      invincibleFill.style.width = `${percent * 100}%`;
+
+      // Blink near end
+      if (left <= BLINK_THRESHOLD_MS) {
+        invincibleBar.classList.add("blink");
+      } else {
+        invincibleBar.classList.remove("blink");
+      }
+    } else {
+      invincibleBar.style.opacity = "0";
+      invincibleBar.classList.remove("blink");
+    }
+  }
+
+  // keep high score synced while playing
+  updateHighScoreIfNeeded();
 }
 
 function trySetDir(dx, dy) {
-  // No 180-degree turn
   const { x, y } = state.dir;
-  if (dx === -x && dy === -y) return;
+  if (dx === -x && dy === -y) return; // no 180 turn
   state.nextDir = { x: dx, y: dy };
 }
 
@@ -107,6 +154,8 @@ window.addEventListener("keydown", (e) => {
 restartBtn.addEventListener("click", newGame);
 
 function newGame() {
+  const storedHigh = loadHighScore();
+
   state = {
     snake: [
       { x: 8, y: 12 },
@@ -117,9 +166,10 @@ function newGame() {
     nextDir: { x: 1, y: 0 },
 
     score: 0,
-    alive: true,
+    highScore: storedHigh,
 
-    invincibleUntil: 0, // timestamp ms
+    alive: true,
+    invincibleUntil: 0,
 
     strawberry: null,
     star: null,
@@ -128,6 +178,15 @@ function newGame() {
 
   placeStrawberry();
   placeStar();
+
+  // reset bar visibility
+  if (invincibleBar && invincibleFill) {
+    invincibleBar.style.opacity = "0";
+    invincibleFill.style.width = "100%";
+    invincibleBar.classList.remove("blink");
+  }
+
+  setHighScoreUI(state.highScore);
   updateHUD();
   draw();
 }
@@ -142,7 +201,7 @@ function tick() {
 
   const inv = isInvincible();
 
-  // Wall collision (normal)
+  // wall collision when NOT invincible
   if (!inv && (newHead.x < 0 || newHead.x >= GRID || newHead.y < 0 || newHead.y >= GRID)) {
     state.alive = false;
     updateHUD();
@@ -150,7 +209,7 @@ function tick() {
     return;
   }
 
-  // When invincible, wrap around instead of dying (fun + clear "invincible" feel)
+  // wrap-around when invincible
   if (inv) {
     if (newHead.x < 0) newHead.x = GRID - 1;
     if (newHead.x >= GRID) newHead.x = 0;
@@ -164,19 +223,18 @@ function tick() {
   const willEatStar =
     state.starActive && state.star && newHead.x === state.star.x && newHead.y === state.star.y;
 
-  // Move: add head
+  // move: add head
   state.snake.unshift(newHead);
 
-  // Eat strawberry => grow + score
+  // strawberry => grow + score
   if (willEatStrawberry) {
     state.score += 10;
     placeStrawberry();
   } else {
-    // normal move: remove tail
-    state.snake.pop();
+    state.snake.pop(); // normal move
   }
 
-  // Eat star => invincible 3 seconds + respawn later
+  // star => invincible + respawn later
   if (willEatStar) {
     setInvincible(3);
     state.starActive = false;
@@ -187,7 +245,7 @@ function tick() {
     }, 1800);
   }
 
-  // Self collision (only when not invincible)
+  // self collision when NOT invincible
   if (!inv) {
     const headNow = state.snake[0];
     for (let i = 1; i < state.snake.length; i++) {
@@ -222,7 +280,7 @@ function draw() {
   const inv = isInvincible();
   const head = state.snake[0];
 
-  // invincible aura around head
+  // invincible aura
   if (inv) {
     const cx = head.x * TILE + TILE / 2;
     const cy = head.y * TILE + TILE / 2;
@@ -236,7 +294,7 @@ function draw() {
     ctx.fill();
   }
 
-  // draw tail -> head so head sits on top
+  // tail -> head
   for (let i = state.snake.length - 1; i >= 0; i--) {
     const p = state.snake[i];
     const isHead = i === 0;
@@ -252,7 +310,6 @@ function draw() {
       ? "rgba(255, 220, 120, 0.96)"
       : "rgba(140, 200, 255, 0.96)";
 
-    // head a bit brighter
     if (isHead) {
       ctx.fillStyle = inv
         ? "rgba(255, 200, 70, 1)"
@@ -277,7 +334,6 @@ function draw() {
       const cx = p.x * TILE + TILE / 2;
       const cy = p.y * TILE + TILE / 2;
 
-      // tiny offset toward moving direction
       const dx = state.dir.x;
       const dy = state.dir.y;
 
@@ -289,13 +345,11 @@ function draw() {
       const rightEyeX = cx + 6 + eyeOffsetX;
 
       const drawEye = (ex, ey) => {
-        // pupil
         ctx.fillStyle = "rgba(20, 26, 38, 0.95)";
         ctx.beginPath();
         ctx.arc(ex, ey, 3.2, 0, Math.PI * 2);
         ctx.fill();
 
-        // sparkle
         ctx.fillStyle = "rgba(255,255,255,0.9)";
         ctx.beginPath();
         ctx.arc(ex - 1.1, ey - 1.2, 1.1, 0, Math.PI * 2);
@@ -315,7 +369,7 @@ function draw() {
       ctx.fill();
       ctx.restore();
 
-      // little smile (toward front)
+      // smile (toward front)
       ctx.strokeStyle = "rgba(20, 26, 38, 0.55)";
       ctx.lineWidth = 2;
       ctx.lineCap = "round";
@@ -325,7 +379,7 @@ function draw() {
     }
   }
 
-  // Game Over overlay
+  // game over overlay
   if (!state.alive) {
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -354,7 +408,7 @@ function loop(ts) {
     tick();
     last = ts;
   } else {
-    // keep HUD countdown feeling responsive
+    // keep HUD + bar responsive
     updateHUD();
   }
 
